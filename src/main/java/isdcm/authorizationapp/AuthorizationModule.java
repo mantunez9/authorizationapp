@@ -2,15 +2,13 @@ package isdcm.authorizationapp;
 
 import com.sun.xacml.PDP;
 import com.sun.xacml.PDPConfig;
+import com.sun.xacml.ctx.RequestCtx;
+import com.sun.xacml.ctx.ResponseCtx;
 import com.sun.xacml.finder.AttributeFinder;
 import com.sun.xacml.finder.PolicyFinder;
 import com.sun.xacml.finder.impl.CurrentEnvModule;
 import com.sun.xacml.finder.impl.FilePolicyModule;
 
-import java.io.FileInputStream;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
@@ -21,7 +19,7 @@ public class AuthorizationModule {
     public static void main(String[] args) {
 
         FilePolicyModule policyModule = new FilePolicyModule();
-        policyModule.addPolicy("/path/to/policy.xml");
+        policyModule.addPolicy("src/main/resources/policy/XACMLPolicy1.xml");
 
         CurrentEnvModule envModule = new CurrentEnvModule();
 
@@ -37,13 +35,8 @@ public class AuthorizationModule {
 
         PDP pdp = new PDP(new PDPConfig(attrFinder, policyFinder, null));
 
-        //RequestCtx request = new RequestCtx(subjects, resourceAttrs, actionAttrs, environmentAttrs);
-
-        try (InputStream input = new FileInputStream("myfile.txt")) {
-            OutputStream response = pdp.evaluate(input);
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
+       // RequestCtx request = new RequestCtx(subjects, resourceAttrs, actionAttrs, environmentAttrs);
+       // ResponseCtx response = pdp.evaluate(request);
 
     }
 
