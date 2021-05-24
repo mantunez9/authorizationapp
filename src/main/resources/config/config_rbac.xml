@@ -9,7 +9,7 @@
 	<policyFinderModule class="com.sun.xacml.finder.impl.FilePolicyModule">
 		<list>		  
 		 <string>support/policy/XACMLPolicy1.xml</string>
-		<!--		 
+		<!--
 			Sample policies
 		 <string>support/policy/XACMLPolicy2.xml</string>
 		 <string>support/policy/XACMLPolicy3.xml</string> 		-->

@@ -3,7 +3,6 @@ package isdcm.authorizationapp;
 import com.sun.xacml.PDP;
 import com.sun.xacml.PDPConfig;
 import com.sun.xacml.ctx.RequestCtx;
-import com.sun.xacml.ctx.Result;
 import com.sun.xacml.finder.AttributeFinder;
 import com.sun.xacml.finder.PolicyFinder;
 import com.sun.xacml.finder.impl.CurrentEnvModule;
@@ -15,6 +14,9 @@ import javax.swing.*;
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
 import java.io.File;
+import java.io.FileOutputStream;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.util.*;
 
 public class AuthorizationModule {
@@ -129,8 +131,8 @@ public class AuthorizationModule {
         }
 
         RequestCtx request = new RequestCtx(RequestBuilder.setupSubjects(subjects), RequestBuilder.setupResource(resources), RequestBuilder.setupAction(actions), new HashSet());
-        Result result = (Result) pdp.evaluate(request).getResults().iterator().next();
-        System.out.println("Resource: " + result.getResource());
+        pdp.evaluate(request).encode(new FileOutputStream("src/main/resources/response.xml"));
+        System.out.println(new String(Files.readAllBytes(Paths.get("src/main/resources/response.xml"))));
 
     }
 
