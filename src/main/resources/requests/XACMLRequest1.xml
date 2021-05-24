@@ -12,7 +12,7 @@
       </Attribute>
   </Subject>
    <Resource>
-    <Attribute AttributeId="urn:oasis:names:tc:xacml:1.0:resource:resource-id" 
+    <Attribute AttributeId="urn:oasis:names:tc:xacml:1.0:resource:resource-id"
     		   DataType="http://www.w3.org/2001/XMLSchema#string">
       <AttributeValue>urn:mvideo:Mavericksv.mp4</AttributeValue>
     </Attribute>
