@@ -1,6 +1,6 @@
 <Response>
-<Result ResourceId="urn:bbc:mdocum:Planets.mp4">
-<Decision>NotApplicable</Decision>
+<Result ResourceId="urn:mvideo:Mavericksv.mp4">
+<Decision>Permit</Decision>
 <Status>
 <StatusCode Value="urn:oasis:names:tc:xacml:1.0:status:ok"/>
 </Status>

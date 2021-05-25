@@ -9,17 +9,25 @@ import com.sun.xacml.finder.impl.CurrentEnvModule;
 import com.sun.xacml.finder.impl.FilePolicyModule;
 import org.w3c.dom.Document;
 import org.w3c.dom.NodeList;
+import org.wso2.balana.Balana;
+import org.wso2.balana.finder.AttributeFinderModule;
+import org.wso2.balana.finder.ResourceFinder;
+import org.wso2.balana.finder.ResourceFinderModule;
+import org.wso2.balana.finder.impl.FileBasedPolicyFinderModule;
 
 import javax.swing.*;
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
 import java.io.File;
 import java.io.FileOutputStream;
+import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.*;
 
 public class AuthorizationModule {
+
+    private static Balana balana;
 
     public static final String ATTRIBUTE = "Attribute";
     public static final String ATTRIBUTE_VALUE = "AttributeValue";
@@ -31,7 +39,7 @@ public class AuthorizationModule {
         int selection;
         Scanner input = new Scanner(System.in);
 
-        System.out.println("Choose from these choices");
+        System.out.println("\nChoose from these choices");
         System.out.println("-------------------------\n");
         System.out.println("1 - Sun Authorization");
         System.out.println("2 - Balana Authorization");
@@ -54,6 +62,8 @@ public class AuthorizationModule {
                     sunAuthorization();
                     break;
                 case 2:
+                    balanaAuthorization();
+                    break;
                 case 3:
                     conditional = false;
 
@@ -132,6 +142,7 @@ public class AuthorizationModule {
 
         RequestCtx request = new RequestCtx(RequestBuilder.setupSubjects(subjects), RequestBuilder.setupResource(resources), RequestBuilder.setupAction(actions), new HashSet());
         pdp.evaluate(request).encode(new FileOutputStream("src/main/resources/response.xml"));
+        System.out.println("\n======================== XACML Response ===================");
         System.out.println(new String(Files.readAllBytes(Paths.get("src/main/resources/response.xml"))));
 
     }
@@ -148,6 +159,47 @@ public class AuthorizationModule {
         JFileChooser file = new JFileChooser();
         file.showOpenDialog(null);
         return file.getSelectedFile().getPath();
+    }
+
+    private static void balanaAuthorization() throws Exception {
+
+        initBalana();
+
+        String request = new String(Files.readAllBytes(Paths.get(abrirArchivo())));
+        org.wso2.balana.PDP pdp = getPDPNewInstance();
+        String response = pdp.evaluate(request);
+        System.out.println("\n======================== XACML Response ===================");
+        System.out.println(response);
+
+    }
+
+    private static void initBalana() {
+
+        try {
+            // using file based policy repository. so set the policy location as system property
+            String policyLocation = (new File(".")).getCanonicalPath() + File.separator + "src\\main\\resources\\balana\\policy";
+            System.setProperty(FileBasedPolicyFinderModule.POLICY_DIR_PROPERTY, policyLocation);
+        } catch (IOException e) {
+            System.err.println("Can not locate policy repository");
+        }
+        // create default instance of Balana
+        balana = Balana.getInstance();
+    }
+
+    private static org.wso2.balana.PDP getPDPNewInstance() {
+
+        org.wso2.balana.PDPConfig pdpConfig = balana.getPdpConfig();
+
+        org.wso2.balana.finder.AttributeFinder attributeFinder = pdpConfig.getAttributeFinder();
+        List<AttributeFinderModule> finderModules = attributeFinder.getModules();
+        attributeFinder.setModules(finderModules);
+
+        ResourceFinder resourceFinder = pdpConfig.getResourceFinder();
+        List<ResourceFinderModule> resourceModules = resourceFinder.getModules();
+        resourceFinder.setModules(resourceModules);
+
+        return new org.wso2.balana.PDP(new org.wso2.balana.PDPConfig(attributeFinder, pdpConfig.getPolicyFinder(), resourceFinder, true));
+
     }
 
 }
