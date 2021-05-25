@@ -14,15 +14,31 @@ import org.wso2.balana.finder.AttributeFinderModule;
 import org.wso2.balana.finder.ResourceFinder;
 import org.wso2.balana.finder.ResourceFinderModule;
 import org.wso2.balana.finder.impl.FileBasedPolicyFinderModule;
+import org.xml.sax.SAXException;
 
 import javax.swing.*;
+import javax.xml.crypto.MarshalException;
+import javax.xml.crypto.dsig.*;
+import javax.xml.crypto.dsig.dom.DOMSignContext;
+import javax.xml.crypto.dsig.keyinfo.KeyInfo;
+import javax.xml.crypto.dsig.keyinfo.KeyInfoFactory;
+import javax.xml.crypto.dsig.keyinfo.X509Data;
+import javax.xml.crypto.dsig.spec.C14NMethodParameterSpec;
+import javax.xml.crypto.dsig.spec.TransformParameterSpec;
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
-import java.io.File;
-import java.io.FileOutputStream;
-import java.io.IOException;
+import javax.xml.parsers.ParserConfigurationException;
+import javax.xml.transform.Transformer;
+import javax.xml.transform.TransformerException;
+import javax.xml.transform.TransformerFactory;
+import javax.xml.transform.dom.DOMSource;
+import javax.xml.transform.stream.StreamResult;
+import java.io.*;
 import java.nio.file.Files;
 import java.nio.file.Paths;
+import java.security.*;
+import java.security.cert.CertificateException;
+import java.security.cert.X509Certificate;
 import java.util.*;
 
 public class AuthorizationModule {
@@ -43,7 +59,8 @@ public class AuthorizationModule {
         System.out.println("-------------------------\n");
         System.out.println("1 - Sun Authorization");
         System.out.println("2 - Balana Authorization");
-        System.out.println("3 - Quit");
+        System.out.println("3 - Signature");
+        System.out.println("4 - Quit");
 
         selection = input.nextInt();
         return selection;
@@ -65,6 +82,9 @@ public class AuthorizationModule {
                     balanaAuthorization();
                     break;
                 case 3:
+                    signature();
+                    break;
+                case 4:
                     conditional = false;
 
             }
@@ -148,23 +168,27 @@ public class AuthorizationModule {
     }
 
     private static Document inputFileToDoc(String fileName) throws Exception {
+
         File xmlFile = new File(fileName);
         DocumentBuilderFactory dbFactory = DocumentBuilderFactory.newInstance();
         dbFactory.setNamespaceAware(true);
         DocumentBuilder dBuilder = dbFactory.newDocumentBuilder();
         return dBuilder.parse(xmlFile);
+
     }
 
     private static String abrirArchivo() {
+
         JFileChooser file = new JFileChooser();
+        file.setCurrentDirectory(new File("."));
         file.showOpenDialog(null);
         return file.getSelectedFile().getPath();
+
     }
 
     private static void balanaAuthorization() throws Exception {
 
         initBalana();
-
         String request = new String(Files.readAllBytes(Paths.get(abrirArchivo())));
         org.wso2.balana.PDP pdp = getPDPNewInstance();
         String response = pdp.evaluate(request);
@@ -175,15 +199,11 @@ public class AuthorizationModule {
 
     private static void initBalana() {
 
-        try {
-            // using file based policy repository. so set the policy location as system property
-            String policyLocation = (new File(".")).getCanonicalPath() + File.separator + "src\\main\\resources\\balana\\policy";
-            System.setProperty(FileBasedPolicyFinderModule.POLICY_DIR_PROPERTY, policyLocation);
-        } catch (IOException e) {
-            System.err.println("Can not locate policy repository");
-        }
-        // create default instance of Balana
+        String path = abrirArchivo();
+        String policyLocation = path;
+        System.setProperty(FileBasedPolicyFinderModule.POLICY_DIR_PROPERTY, policyLocation);
         balana = Balana.getInstance();
+
     }
 
     private static org.wso2.balana.PDP getPDPNewInstance() {
@@ -199,6 +219,57 @@ public class AuthorizationModule {
         resourceFinder.setModules(resourceModules);
 
         return new org.wso2.balana.PDP(new org.wso2.balana.PDPConfig(attributeFinder, pdpConfig.getPolicyFinder(), resourceFinder, true));
+
+    }
+
+    private static void signature() throws ParserConfigurationException, IOException, SAXException, MarshalException, XMLSignatureException, InvalidAlgorithmParameterException, NoSuchAlgorithmException, KeyStoreException, CertificateException, UnrecoverableEntryException, TransformerException {
+
+        XMLSignatureFactory fac = XMLSignatureFactory.getInstance("DOM");
+
+        Reference ref = fac.newReference
+                ("", fac.newDigestMethod(DigestMethod.SHA1, null),
+                        Collections.singletonList
+                                (fac.newTransform
+                                        (Transform.ENVELOPED, (TransformParameterSpec) null)),
+                        null, null);
+
+        SignedInfo si = fac.newSignedInfo
+                (fac.newCanonicalizationMethod
+                                (CanonicalizationMethod.INCLUSIVE,
+                                        (C14NMethodParameterSpec) null),
+                        fac.newSignatureMethod(SignatureMethod.RSA_SHA1, null),
+                        Collections.singletonList(ref));
+
+        KeyStore ks = KeyStore.getInstance("JKS");
+        ks.load(new FileInputStream("C:/Users/mantu/.keystore"), "isdcm12".toCharArray());
+        KeyStore.PrivateKeyEntry keyEntry =
+                (KeyStore.PrivateKeyEntry) ks.getEntry
+                        ("isdcm", new KeyStore.PasswordProtection("isdcm12".toCharArray()));
+        X509Certificate cert = (X509Certificate) keyEntry.getCertificate();
+
+        KeyInfoFactory kif = fac.getKeyInfoFactory();
+        List x509Content = new ArrayList();
+        x509Content.add(cert.getSubjectX500Principal().getName());
+        x509Content.add(cert);
+        X509Data xd = kif.newX509Data(x509Content);
+        KeyInfo ki = kif.newKeyInfo(Collections.singletonList(xd));
+
+        DocumentBuilderFactory dbf = DocumentBuilderFactory.newInstance();
+        dbf.setNamespaceAware(true);
+        Document doc = dbf.newDocumentBuilder().parse
+                (new FileInputStream(abrirArchivo()));
+
+        DOMSignContext dsc = new DOMSignContext
+                (keyEntry.getPrivateKey(), doc.getDocumentElement());
+
+        XMLSignature signature = fac.newXMLSignature(si, ki);
+
+        signature.sign(dsc);
+
+        OutputStream os = new FileOutputStream("signedDocument.xml");
+        TransformerFactory tf = TransformerFactory.newInstance();
+        Transformer trans = tf.newTransformer();
+        trans.transform(new DOMSource(doc), new StreamResult(os));
 
     }
 
